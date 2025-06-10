@@ -36,10 +36,10 @@
   },
   "devDependencies": {
     "@codexteam/ajax": "^4.2.0",
-    "@editorjs/editorjs": "2.30.0-rc.12",
+    "@editorjs/editorjs": "2.30.8",
     "@typescript-eslint/eslint-plugin": "^7.16.1",
     "@typescript-eslint/parser": "^7.16.1",
-    "eslint": "^9.7.0",
+    "eslint": "^9.28.0",
     "eslint-config-codex": "^2.0.1",
     "eslint-loader": "^4.0.2",
     "formidable": "^3.5.1",

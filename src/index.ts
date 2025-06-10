@@ -46,14 +46,8 @@ import './index.css';
 import Ui from './ui';
 import Uploader from './uploader';
 
-import {
-  IconAddBorder,
-  IconStretch,
-  IconAddBackground,
-  IconPicture,
-} from '@codexteam/icons';
+import { IconPicture } from '@codexteam/icons';
 import type {
-  ActionConfig,
   UploadResponseFormat,
   ImageToolData,
   ImageConfig,
@@ -61,10 +55,10 @@ import type {
   ImageSetterParam,
 } from './types/types';
 
-type ImageToolConstructorOptions = BlockToolConstructorOptions<
-  ImageToolData,
-  ImageConfig
->;
+interface ImageToolConstructorOptions
+  extends BlockToolConstructorOptions<ImageToolData, ImageConfig> {
+  config: ImageConfig;
+}
 
 /**
  * Implementation of ImageTool class
@@ -127,7 +121,7 @@ export default class ImageTool implements BlockTool {
      * Tool's initial config
      */
     this.config = {
-      endpoints: config.endpoints,
+      endpoints: config?.endpoints,
       additionalRequestData: config.additionalRequestData,
       additionalRequestHeaders: config.additionalRequestHeaders,
       types: config.types,
