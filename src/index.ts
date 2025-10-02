@@ -397,4 +397,11 @@ export default class ImageTool implements BlockTool {
   private isNotEmpty(str: string): boolean {
     return str !== null && str !== undefined && str.trim() !== '';
   }
+
+  /**
+   * Clean up when block is removed
+   */
+  public destroy(): void {
+    this.ui.destroy();
+  }
 }

@@ -116,6 +116,12 @@ export default class Ui {
   private contentRatio: number = 1;
 
   /**
+   * Store event listeners for cleanup
+   */
+  private imageLoadHandler: ((e: Event) => void) | null = null;
+  private imageErrorHandler: ((e: Event) => void) | null = null;
+
+  /**
    * @param ui - image tool Ui module
    * @param ui.api - Editor.js API
    * @param ui.config - user config
@@ -206,8 +212,11 @@ export default class Ui {
      */
     const tag = /\.mp4$/.test(url) ? 'VIDEO' : 'IMG';
 
+    // Use native lazy loading - simple and effective
     const attributes: { [key: string]: string | boolean } = {
       src: url,
+      loading: 'lazy', // Native lazy loading
+      decoding: 'async', // Non-blocking decoding
     };
 
     /**
@@ -245,28 +254,63 @@ export default class Ui {
       attributes
     ) as HTMLImageElement | HTMLVideoElement;
 
+    // Clean up old listeners if they exist
+    if (this.imageLoadHandler && this.nodes.imageEl) {
+      this.nodes.imageEl.removeEventListener(eventName, this.imageLoadHandler);
+    }
+    if (this.imageErrorHandler && this.nodes.imageEl) {
+      this.nodes.imageEl.removeEventListener('error', this.imageErrorHandler);
+    }
+
     /**
      * Add load event listener
      */
-    this.nodes.imageEl.addEventListener(eventName, (e: Event) => {
+    this.imageLoadHandler = (e: Event) => {
       this.toggleStatus(UiState.Filled);
-      if (height !== undefined && width !== undefined) {
-        this.nodes.imageEl!.style.width = `${width}px`;
 
-        this.nodes.imageEl!.style.height = `${height}px`;
-        this.contentRatio = parseInt(height, 10) / parseInt(width, 10);
+      // Calculate aspect ratio from natural dimensions
+      if (tag === 'VIDEO') {
+        const video = this.nodes.imageEl as HTMLVideoElement;
+        this.contentRatio = video.videoHeight / video.videoWidth;
       } else {
-        this.contentRatio =
-          (this.nodes.imageEl?.clientHeight ?? 1) /
-          (this.nodes.imageEl?.clientWidth ?? 1);
+        const img = this.nodes.imageEl as HTMLImageElement;
+        this.contentRatio = img.naturalHeight / img.naturalWidth;
       }
+
+      // Apply saved dimensions if they exist
+      if (width !== undefined) {
+        const widthNum = parseInt(width, 10);
+        this.nodes.imageEl!.style.width = `${widthNum}px`;
+
+        if (height !== undefined) {
+          // Use provided height
+          this.nodes.imageEl!.style.height = `${height}px`;
+        } else {
+          // Calculate height from aspect ratio
+          const calculatedHeight = Math.round(widthNum * this.contentRatio);
+          this.nodes.imageEl!.style.height = `${calculatedHeight}px`;
+        }
+      }
+
       /**
-       * Preloader does not exists on first rendering with presaved data
+       * Clear preloader
        */
       if (this.nodes.imagePreloader !== undefined) {
         this.nodes.imagePreloader.style.backgroundImage = '';
       }
-    });
+    };
+
+    /**
+     * Add error handler
+     */
+    this.imageErrorHandler = (e: Event) => {
+      console.error('Image failed to load:', url);
+      this.toggleStatus(UiState.Empty);
+      // Could show an error message to user here
+    };
+
+    this.nodes.imageEl.addEventListener(eventName, this.imageLoadHandler);
+    this.nodes.imageEl.addEventListener('error', this.imageErrorHandler);
 
     const contentWrapper = make('div', ['content-wrapper']);
 
@@ -322,6 +366,26 @@ export default class Ui {
     if (this.nodes.caption !== undefined) {
       this.nodes.caption.innerHTML = text;
     }
+  }
+
+  /**
+   * Clean up resources when destroying the block
+   */
+  public destroy(): void {
+    // Remove event listeners
+    if (this.nodes.imageEl) {
+      if (this.imageLoadHandler) {
+        this.nodes.imageEl.removeEventListener('load', this.imageLoadHandler);
+        this.nodes.imageEl.removeEventListener('loadeddata', this.imageLoadHandler);
+      }
+      if (this.imageErrorHandler) {
+        this.nodes.imageEl.removeEventListener('error', this.imageErrorHandler);
+      }
+    }
+
+    // Clear references
+    this.imageLoadHandler = null;
+    this.imageErrorHandler = null;
   }
 
   /**
