@@ -82,6 +82,8 @@ export default class Uploader {
         .selectFiles({ accept: this.config.types ?? 'image/*' })
         .then((files: File[]) => {
           onPreUpload?.();
+          // Show loading state immediately with empty preview
+          onPreview('');
           preparePreview(files[0]);
 
           const customUpload = uploadByFile(files[0]);
@@ -108,6 +110,8 @@ export default class Uploader {
           >,
           beforeSend: (files: File[]) => {
             onPreUpload?.();
+            // Show loading state immediately with empty preview
+            onPreview('');
             preparePreview(files[0]);
           },
           fieldName: this.config.field ?? 'image',
@@ -188,6 +192,9 @@ export default class Uploader {
    * @param onPreview - file pasted by drag-n-drop
    */
   public uploadByFile(file: Blob, { onPreview }: UploadOptions): void {
+    // Show loading state immediately
+    onPreview('');
+
     /**
      * Load file for preview
      */

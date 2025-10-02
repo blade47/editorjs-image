@@ -120,6 +120,8 @@ export default class Ui {
    */
   private imageLoadHandler: ((e: Event) => void) | null = null;
   private imageErrorHandler: ((e: Event) => void) | null = null;
+  private fileButtonHandler: (() => void) | null = null;
+  private resizeHandlers: Map<HTMLElement, (e: MouseEvent) => void> = new Map();
 
   /**
    * @param ui - image tool Ui module
@@ -165,7 +167,10 @@ export default class Ui {
     this.nodes.imageContainer.appendChild(this.nodes.imagePreloader);
     this.nodes.wrapper.appendChild(this.nodes.imageContainer);
 
-    this.nodes.wrapper.appendChild(this.nodes.fileButton);
+    // Only add file button if not in read-only mode
+    if (!this.readOnly) {
+      this.nodes.wrapper.appendChild(this.nodes.fileButton);
+    }
   }
 
   /**
@@ -212,7 +217,7 @@ export default class Ui {
      */
     const tag = /\.mp4$/.test(url) ? 'VIDEO' : 'IMG';
 
-    // Use native lazy loading - simple and effective
+    // Set up attributes for immediate loading
     const attributes: { [key: string]: string | boolean } = {
       src: url,
       loading: 'lazy', // Native lazy loading
@@ -268,6 +273,9 @@ export default class Ui {
     this.imageLoadHandler = (e: Event) => {
       this.toggleStatus(UiState.Filled);
 
+      // Add loaded class for fade-in animation
+      this.nodes.imageEl?.classList.add('loaded');
+
       // Calculate aspect ratio from natural dimensions
       if (tag === 'VIDEO') {
         const video = this.nodes.imageEl as HTMLVideoElement;
@@ -280,23 +288,17 @@ export default class Ui {
       // Apply saved dimensions if they exist
       if (width !== undefined) {
         const widthNum = parseInt(width, 10);
+        // Set width directly, not maxWidth, so it can be resized larger
         this.nodes.imageEl!.style.width = `${widthNum}px`;
-
-        if (height !== undefined) {
-          // Use provided height
-          this.nodes.imageEl!.style.height = `${height}px`;
-        } else {
-          // Calculate height from aspect ratio
-          const calculatedHeight = Math.round(widthNum * this.contentRatio);
-          this.nodes.imageEl!.style.height = `${calculatedHeight}px`;
-        }
+        // Keep height auto to maintain aspect ratio
+        this.nodes.imageEl!.style.height = 'auto';
       }
 
       /**
-       * Clear preloader
+       * Hide preloader after image loads
        */
       if (this.nodes.imagePreloader !== undefined) {
-        this.nodes.imagePreloader.style.backgroundImage = '';
+        this.nodes.imagePreloader.style.display = 'none';
       }
     };
 
@@ -305,10 +307,16 @@ export default class Ui {
      */
     this.imageErrorHandler = (e: Event) => {
       console.error('Image failed to load:', url);
+      // Show the upload button again on error
       this.toggleStatus(UiState.Empty);
-      // Could show an error message to user here
+      // Remove the failed image element
+      if (this.nodes.imageEl && this.nodes.imageEl.parentNode) {
+        this.nodes.imageEl.parentNode.removeChild(this.nodes.imageEl);
+        this.nodes.imageEl = undefined;
+      }
     };
 
+    // Add event listeners immediately
     this.nodes.imageEl.addEventListener(eventName, this.imageLoadHandler);
     this.nodes.imageEl.addEventListener('error', this.imageErrorHandler);
 
@@ -351,11 +359,10 @@ export default class Ui {
 
     // eslint-disable-next-line @typescript-eslint/no-magic-numbers
     newWidth = Math.max(newWidth, 30);
-    const newHeight = newWidth * this.contentRatio;
 
+    // Set width directly to allow resizing both smaller and larger
     this.nodes.imageEl.style.width = `${newWidth}px`;
-
-    this.nodes.imageEl.style.height = `${newHeight}px`;
+    this.nodes.imageEl.style.height = 'auto';
   }
 
   /**
@@ -364,7 +371,7 @@ export default class Ui {
    */
   public fillCaption(text: string): void {
     if (this.nodes.caption !== undefined) {
-      this.nodes.caption.innerHTML = text;
+      this.nodes.caption.textContent = text;
     }
   }
 
@@ -383,9 +390,21 @@ export default class Ui {
       }
     }
 
+    // Clean up file button handler
+    if (this.fileButtonHandler && this.nodes.fileButton) {
+      this.nodes.fileButton.removeEventListener('click', this.fileButtonHandler);
+    }
+
+    // Clean up resize handlers
+    this.resizeHandlers.forEach((handler, element) => {
+      element.removeEventListener('mousedown', handler);
+    });
+    this.resizeHandlers.clear();
+
     // Clear references
     this.imageLoadHandler = null;
     this.imageErrorHandler = null;
+    this.fileButtonHandler = null;
   }
 
   /**
@@ -417,11 +436,13 @@ export default class Ui {
 
     button.innerHTML =
       this.config.buttonContent ??
-      `${IconPicture} ${this.api.i18n.t('Select an Image')}`;
+      `${IconPicture} <span>${this.api.i18n.t('Click to upload image')}</span>`;
 
-    button.addEventListener('click', () => {
+    this.fileButtonHandler = () => {
       this.onSelectFile();
-    });
+    };
+
+    button.addEventListener('click', this.fileButtonHandler);
 
     return button;
   }
@@ -453,7 +474,7 @@ export default class Ui {
 
     container.appendChild(resizeHandle);
 
-    container.addEventListener('mousedown', (e) => {
+    const mouseDownHandler = (e: MouseEvent): void => {
       e.preventDefault();
       this.isResizing = true;
 
@@ -472,16 +493,27 @@ export default class Ui {
       };
 
       document.addEventListener('mouseup', onMouseUp);
-    });
+    };
+
+    container.addEventListener('mousedown', mouseDownHandler);
+
+    // Store the handler for cleanup
+    this.resizeHandlers.set(container, mouseDownHandler);
 
     return container;
   }
 
   public removeFileButton(): void {
-    this.nodes.wrapper.removeChild(this.nodes.fileButton);
+    // Only remove if not in read-only mode
+    if (!this.readOnly && this.nodes.fileButton.parentNode) {
+      this.nodes.wrapper.removeChild(this.nodes.fileButton);
+    }
   }
 
   public addFileButton(): void {
-    this.nodes.wrapper.appendChild(this.nodes.fileButton);
+    // Only add if not in read-only mode
+    if (!this.readOnly) {
+      this.nodes.wrapper.appendChild(this.nodes.fileButton);
+    }
   }
 }
