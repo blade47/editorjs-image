@@ -73,8 +73,8 @@ export default class Uploader {
 
     // custom uploading
     if (
-      this.config.uploader &&
-      typeof this.config.uploader.uploadByFile === 'function'
+      this.config.uploader
+      && typeof this.config.uploader.uploadByFile === 'function'
     ) {
       const uploadByFile = this.config.uploader.uploadByFile;
 
@@ -142,8 +142,8 @@ export default class Uploader {
      * Custom uploading
      */
     if (
-      this.config.uploader &&
-      typeof this.config.uploader.uploadByUrl === 'function'
+      this.config.uploader
+      && typeof this.config.uploader.uploadByUrl === 'function'
     ) {
       upload = this.config.uploader.uploadByUrl(url);
 
@@ -211,8 +211,8 @@ export default class Uploader {
      * Custom uploading
      */
     if (
-      this.config.uploader &&
-      typeof this.config.uploader.uploadByFile === 'function'
+      this.config.uploader
+      && typeof this.config.uploader.uploadByFile === 'function'
     ) {
       upload = this.config.uploader.uploadByFile(file);
 
@@ -230,8 +230,8 @@ export default class Uploader {
       formData.append(this.config.field ?? 'image', file);
 
       if (
-        this.config.additionalRequestData &&
-        Object.keys(this.config.additionalRequestData).length
+        this.config.additionalRequestData
+        && Object.keys(this.config.additionalRequestData).length
       ) {
         Object.entries(this.config.additionalRequestData).forEach(
           ([name, value]: [string, string | Blob]) => {

@@ -17,6 +17,7 @@ export default [
         'n/no-missing-import': ['off'],
         'n/no-unsupported-features/node-builtins': ['off'],
         'jsdoc/require-returns-description': ['off'],
+        '@typescript-eslint/no-duplicate-enum-values': ['off'], // Disabled due to version conflict
         "@typescript-eslint/naming-convention": [
           "error",
           {
@@ -24,22 +25,9 @@ export default [
             "format": ["camelCase"],
             "leadingUnderscore": "allow"
           },
-        ],
-        "@typescript-eslint/ban-types": ["error",
-            {
-                "types": {
-                    "String": true,
-                    "Boolean": true,
-                    "Number": true,
-                    "Symbol": true,
-                    "{}": false,
-                    "Object": true,
-                    "object": false,
-                    "Function": false,
-                },
-                "extendDefaults": true
-            }
         ]
+        // Note: @typescript-eslint/ban-types was removed in typescript-eslint v6+
+        // TypeScript's compiler now handles type checking for String, Number, etc.
     }
   },
   {

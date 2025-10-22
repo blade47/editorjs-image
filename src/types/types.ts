@@ -45,13 +45,13 @@ export interface ActionConfig {
   /**
    * An optional action function to be executed when the tune is activated.
    */
-  action?: Function;
+  action?: () => void;
 }
 
 /**
  * UploadResponseFormat interface representing the response format expected from the backend on file uploading.
  */
-export interface UploadResponseFormat<AdditionalFileData = {}> {
+export interface UploadResponseFormat<AdditionalFileData = Record<string, unknown>> {
   /**
    * success - 1 for successful uploading, 0 for failure
    */
@@ -73,7 +73,8 @@ export interface UploadResponseFormat<AdditionalFileData = {}> {
 /**
  * ImageToolData type representing the input and output data format for the image tool, including optional custome actions.
  */
-export type ImageToolData<Actions = {}, AdditionalFileData = {}> = {
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type ImageToolData<Actions = {}, AdditionalFileData = Record<string, unknown>> = {
   /**
    * Caption for the image.
    */
@@ -99,6 +100,7 @@ export type ImageToolData<Actions = {}, AdditionalFileData = {}> = {
      */
     url: string;
   } & AdditionalFileData;
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 } & (Actions extends Record<string, boolean> ? Actions : {});
 
 /**

@@ -29,7 +29,6 @@
  * },
  */
 
-import type { TunesMenuConfig } from '@editorjs/editorjs/types/tools';
 import type {
   API,
   ToolboxConfig,
@@ -39,7 +38,7 @@ import type {
   BlockAPI,
   PasteEvent,
   PatternPasteEventDetail,
-  FilePasteEventDetail,
+  FilePasteEventDetail
 } from '@editorjs/editorjs';
 import './index.css';
 
@@ -52,11 +51,17 @@ import type {
   ImageToolData,
   ImageConfig,
   HTMLPasteEventDetailExtended,
-  ImageSetterParam,
+  ImageSetterParam
 } from './types/types';
 
+/**
+ * Constructor options for ImageTool, extending BlockToolConstructorOptions with image-specific configuration
+ */
 interface ImageToolConstructorOptions
   extends BlockToolConstructorOptions<ImageToolData, ImageConfig> {
+  /**
+   * User configuration for ImageTool
+   */
   config: ImageConfig;
 }
 
@@ -221,8 +226,18 @@ export default class ImageTool implements BlockTool {
 
     this._data.caption = caption.textContent?.trim() ?? '';
 
-    this._data.height = String(image?.clientHeight ?? '');
-    this._data.width = String(image?.clientWidth ?? '');
+    const currentWidth = image?.clientWidth ?? 0;
+    const currentHeight = image?.clientHeight ?? 0;
+
+    // Only update dimensions if BOTH are valid (> 0)
+    // This prevents:
+    // 1. Overwriting valid dimensions with 0
+    // 2. Distorting aspect ratio by saving only one dimension
+    if (currentWidth > 0 && currentHeight > 0) {
+      this._data.width = String(currentWidth);
+      this._data.height = String(currentHeight);
+    }
+    // else: keep existing dimensions (undefined for new images, old values for existing)
 
     return this.data;
   }
@@ -233,6 +248,13 @@ export default class ImageTool implements BlockTool {
    */
   public appendCallback(): void {
     this.ui.nodes.fileButton.click();
+  }
+
+  /**
+   * Clean up when block is removed
+   */
+  public destroy(): void {
+    this.ui.destroy();
   }
 
   /**
@@ -271,18 +293,18 @@ export default class ImageTool implements BlockTool {
    * @param event - editor.js custom paste event
    *                              {@link https://github.com/codex-team/editor.js/blob/master/types/tools/paste-events.d.ts}
    */
-  public async onPaste(event: PasteEvent): Promise<void> {
+  public onPaste(event: PasteEvent): void {
     switch (event.type) {
       case 'tag': {
         const image = (event.detail as HTMLPasteEventDetailExtended).data;
 
         /** Images from PDF */
         if (/^blob:/.test(image.src)) {
-          const response = await fetch(image.src);
-
-          const file = await response.blob();
-
-          this.uploadFile(file);
+          void fetch(image.src)
+            .then(response => response.blob())
+            .then((file) => {
+              this.uploadFile(file);
+            });
           break;
         }
 
@@ -396,12 +418,5 @@ export default class ImageTool implements BlockTool {
    */
   private isNotEmpty(str: string): boolean {
     return str !== null && str !== undefined && str.trim() !== '';
-  }
-
-  /**
-   * Clean up when block is removed
-   */
-  public destroy(): void {
-    this.ui.destroy();
   }
 }

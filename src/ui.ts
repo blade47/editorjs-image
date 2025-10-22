@@ -20,7 +20,7 @@ enum UiState {
   /**
    * The UI is in a filled state, with an image successfully loaded.
    */
-  Filled = 'filled',
+  Filled = 'filled'
 }
 
 /**
@@ -179,8 +179,8 @@ export default class Ui {
    */
   public render(toolData: ImageToolData): HTMLElement {
     if (
-      toolData.file === undefined ||
-      Object.keys(toolData.file).length === 0
+      toolData.file === undefined
+      || Object.keys(toolData.file).length === 0
     ) {
       this.toggleStatus(UiState.Empty);
     } else {
@@ -210,6 +210,8 @@ export default class Ui {
   /**
    * Shows an image
    * @param url - image source
+   * @param height - saved height value
+   * @param width - saved width value
    */
   public fillImage(url: string, height?: string, width?: string): void {
     /**
@@ -260,17 +262,18 @@ export default class Ui {
     ) as HTMLImageElement | HTMLVideoElement;
 
     // Clean up old listeners if they exist
-    if (this.imageLoadHandler && this.nodes.imageEl) {
+    if (this.imageLoadHandler !== null && this.nodes.imageEl !== undefined) {
       this.nodes.imageEl.removeEventListener(eventName, this.imageLoadHandler);
     }
-    if (this.imageErrorHandler && this.nodes.imageEl) {
+    if (this.imageErrorHandler !== null && this.nodes.imageEl !== undefined) {
       this.nodes.imageEl.removeEventListener('error', this.imageErrorHandler);
     }
 
     /**
      * Add load event listener
+     * @param _e - load event
      */
-    this.imageLoadHandler = (e: Event) => {
+    this.imageLoadHandler = (_e: Event) => {
       this.toggleStatus(UiState.Filled);
 
       // Add loaded class for fade-in animation
@@ -279,19 +282,26 @@ export default class Ui {
       // Calculate aspect ratio from natural dimensions
       if (tag === 'VIDEO') {
         const video = this.nodes.imageEl as HTMLVideoElement;
+
         this.contentRatio = video.videoHeight / video.videoWidth;
       } else {
         const img = this.nodes.imageEl as HTMLImageElement;
+
         this.contentRatio = img.naturalHeight / img.naturalWidth;
       }
 
-      // Apply saved dimensions if they exist
+      // Apply saved dimensions if they exist and are valid
       if (width !== undefined) {
         const widthNum = parseInt(width, 10);
-        // Set width directly, not maxWidth, so it can be resized larger
-        this.nodes.imageEl!.style.width = `${widthNum}px`;
-        // Keep height auto to maintain aspect ratio
-        this.nodes.imageEl!.style.height = 'auto';
+
+        // Only apply if valid (> 0) - prevents rendering corrupted data as invisible images
+        if (widthNum > 0) {
+          // Set width directly, not maxWidth, so it can be resized larger
+          this.nodes.imageEl!.style.width = `${widthNum}px`;
+          // Keep height auto to maintain aspect ratio
+          this.nodes.imageEl!.style.height = 'auto';
+        }
+        // else: let image use its natural size
       }
 
       /**
@@ -304,13 +314,14 @@ export default class Ui {
 
     /**
      * Add error handler
+     * @param _e - error event
      */
-    this.imageErrorHandler = (e: Event) => {
+    this.imageErrorHandler = (_e: Event) => {
       console.error('Image failed to load:', url);
       // Show the upload button again on error
       this.toggleStatus(UiState.Empty);
       // Remove the failed image element
-      if (this.nodes.imageEl && this.nodes.imageEl.parentNode) {
+      if (this.nodes.imageEl !== undefined && this.nodes.imageEl.parentNode !== null) {
         this.nodes.imageEl.parentNode.removeChild(this.nodes.imageEl);
         this.nodes.imageEl = undefined;
       }
@@ -376,22 +387,42 @@ export default class Ui {
   }
 
   /**
+   * Removes the file upload button from the UI
+   */
+  public removeFileButton(): void {
+    // Only remove if not in read-only mode
+    if (!this.readOnly && this.nodes.fileButton.parentNode !== null) {
+      this.nodes.wrapper.removeChild(this.nodes.fileButton);
+    }
+  }
+
+  /**
+   * Adds the file upload button to the UI
+   */
+  public addFileButton(): void {
+    // Only add if not in read-only mode
+    if (!this.readOnly) {
+      this.nodes.wrapper.appendChild(this.nodes.fileButton);
+    }
+  }
+
+  /**
    * Clean up resources when destroying the block
    */
   public destroy(): void {
     // Remove event listeners
-    if (this.nodes.imageEl) {
-      if (this.imageLoadHandler) {
+    if (this.nodes.imageEl !== undefined) {
+      if (this.imageLoadHandler !== null) {
         this.nodes.imageEl.removeEventListener('load', this.imageLoadHandler);
         this.nodes.imageEl.removeEventListener('loadeddata', this.imageLoadHandler);
       }
-      if (this.imageErrorHandler) {
+      if (this.imageErrorHandler !== null) {
         this.nodes.imageEl.removeEventListener('error', this.imageErrorHandler);
       }
     }
 
     // Clean up file button handler
-    if (this.fileButtonHandler && this.nodes.fileButton) {
+    if (this.fileButtonHandler !== null && this.nodes.fileButton !== undefined) {
       this.nodes.fileButton.removeEventListener('click', this.fileButtonHandler);
     }
 
@@ -434,9 +465,9 @@ export default class Ui {
   private createFileButton(): HTMLElement {
     const button = make('div', [this.CSS.button]);
 
-    button.innerHTML =
-      this.config.buttonContent ??
-      `${IconPicture} <span>${this.api.i18n.t('Click to upload image')}</span>`;
+    button.innerHTML
+      = this.config.buttonContent
+        ?? `${IconPicture} <span>${this.api.i18n.t('Click to upload image')}</span>`;
 
     this.fileButtonHandler = () => {
       this.onSelectFile();
@@ -501,19 +532,5 @@ export default class Ui {
     this.resizeHandlers.set(container, mouseDownHandler);
 
     return container;
-  }
-
-  public removeFileButton(): void {
-    // Only remove if not in read-only mode
-    if (!this.readOnly && this.nodes.fileButton.parentNode) {
-      this.nodes.wrapper.removeChild(this.nodes.fileButton);
-    }
-  }
-
-  public addFileButton(): void {
-    // Only add if not in read-only mode
-    if (!this.readOnly) {
-      this.nodes.wrapper.appendChild(this.nodes.fileButton);
-    }
   }
 }

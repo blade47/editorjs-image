@@ -1351,7 +1351,7 @@ eslint-compat-utils@^0.5.1:
   dependencies:
     semver "^7.5.4"
 
-eslint-config-codex@^2.0.1:
+eslint-config-codex@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/eslint-config-codex/-/eslint-config-codex-2.0.3.tgz#e53118ca5267da19643e92eb2bd32913d864d541"
   integrity sha512-/MhHxzj6Wd3e5oHzPSkZvlmHexJGCUJ+ZyZFJlcIDL364cPjJtM4d545vOSg3giQtUUCrKFCzGgSS2xVw51smQ==
