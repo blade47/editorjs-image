@@ -6,7 +6,7 @@ Enhanced Image Block for [Editor.js](https://editorjs.io) with interactive resiz
 
 ## 🎥 Demo
 
-<video src="https://github.com/blade47/image/raw/master/demo/demo.mp4" width="100%" controls autoplay loop muted></video>
+![Project Demo](https://github.com/blade47/image/raw/master/demo/demo.gif)
 
 *Interactive resizing, modern UI, and smooth animations in action*
 
