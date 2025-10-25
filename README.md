@@ -22,7 +22,7 @@ This is an enhanced fork of the official [@editorjs/image](https://github.com/ed
 - **⚡ Performance Optimizations** - Lazy loading, async image decoding, and improved rendering performance
 - **🎯 Better Captions** - Centered captions that auto-hide when empty in read-only mode
 - **🛡️ Improved Reliability** - Defensive dimension handling prevents data corruption
-- **📐 Responsive Sizing** - Dimensions saved as percentages for automatic adaptation to container width changes
+- **📐 Dimension Persistence** - Remembers exact pixel dimensions set by user
 - **🎭 Fade-in Animations** - Smooth image loading transitions with opacity effects
 
 ### 🔄 Simplified Architecture
@@ -43,11 +43,10 @@ This fork **removes** the tunes/settings UI (border, background, stretch options
 - ✨ **Video element support** - Display MP4 videos as embedded players
 - ✨ **Modern preloader** - Animated spinner with loading text
 - ✨ **Smooth transitions** - Fade-in effects with cubic-bezier easing
-- ✨ **Responsive design** - Mobile-optimized with breakpoints at 768px and 800px
-- ✨ **Responsive sizing** - Dimensions stored as percentages, adapting to container width
+- ✨ **Responsive design** - Mobile-optimized with breakpoints at 768px and 800px, `max-width: 100%` prevents overflow
 - ✨ **Dimension safety** - Never saves corrupted 0×0 dimensions
 - ✨ **Aspect ratio preservation** - Automatic aspect ratio maintenance during resize
-- ✨ **Backward compatibility** - Seamlessly handles old pixel-based data
+- ✨ **Dimension persistence** - Remembers exact pixel sizes set by user
 
 **Notes**
 
@@ -155,7 +154,8 @@ This Tool returns `data` with following format
 | ------- | -------- | ----------------------------------------------------- |
 | file    | `object` | Uploaded file data. Any data got from backend uploader. Always contains the `url` property |
 | caption | `string` | Image's caption                                       |
-| width   | `string` | Image width as percentage of block holder (0-100) for responsive behavior. **Backward compatible:** Old pixel values (>100) are still supported. Height is always `auto` to maintain aspect ratio. |
+| width   | `string` | Image width in pixels (preserved from user resizing) |
+| height  | `string` | Image height in pixels (preserved from user resizing) |
 
 ```json
 {
@@ -165,15 +165,15 @@ This Tool returns `data` with following format
             "url": "https://www.tesla.com/tesla_theme/assets/img/_vehicle_redesign/roadster_and_semi/roadster/hero.jpg"
         },
         "caption": "Roadster // tesla.com",
-        "width": "66.67"
+        "width": "800",
+        "height": "450"
     }
 }
 ```
 
 **Notes:**
 - Unlike the original tool, this fork does not include `withBorder`, `withBackground`, or `stretched` fields as the tunes/settings UI has been removed for a cleaner, more focused experience.
-- **Responsive sizing:** Width is stored as percentage relative to the Editor.js block holder, making images automatically adapt to different container widths while preserving the user's visual intent. Height is always `auto` to maintain aspect ratio.
-- **Backward compatibility:** Old data with pixel values (e.g., `"800"`) or height fields is automatically detected and still works. New saves only store width in percentage format.
+- **Dimension storage:** Width and height are stored in pixels, preserving the exact size the user set when resizing. Combined with CSS `max-width: 100%`, images automatically scale down on smaller screens while maintaining the user's intended size on larger displays.
 
 ## Backend Response Format <a name="server-format"></a>
 
@@ -442,10 +442,10 @@ This is a fork maintained separately from the original Editor.js Image tool.
 
 ### v3.0.6 (2025-10-23)
 - 🛡️ **Fixed critical dimension corruption bug** - prevents saving 0×0 dimensions
-- 📐 **Changed to percentage-based sizing** - dimensions now saved as % of block holder for responsive behavior (fully backward compatible with old pixel values)
 - 🔧 Fixed ESLint configuration issues (removed deprecated rules, resolved version conflicts)
 - 📝 Improved code quality and TypeScript type safety
 - ✨ Changed async `onPaste` to sync for better Editor.js compatibility
+- 📐 Dimensions stored in pixels with CSS `max-width: 100%` for responsive behavior
 
 ### v3.0.3 (2025-06)
 - ✨ Added interactive image/video resizing with drag handles
