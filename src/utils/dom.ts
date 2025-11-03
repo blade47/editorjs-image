@@ -3,7 +3,7 @@
  * @param tagName           - new Element tag name
  * @param classNames  - list or name of CSS class
  * @param attributes        - any attributes
- * @returns
+ * @returns HTMLElement with applied classes and attributes
  */
 export function make(tagName: string, classNames: string[] | string | null = null, attributes: { [key: string]: string | boolean } = {}): HTMLElement {
   const el = document.createElement(tagName);
@@ -15,8 +15,8 @@ export function make(tagName: string, classNames: string[] | string | null = nul
   }
 
   for (const attrName in attributes) {
-    if (attributes.hasOwnProperty(attrName)) {
-      (el as unknown as { [key: string]: string | boolean })[attrName] = attributes[attrName];
+    if (Object.prototype.hasOwnProperty.call(attributes, attrName)) {
+      (el as HTMLElement & Record<string, string | boolean>)[attrName] = attributes[attrName];
     }
   }
 

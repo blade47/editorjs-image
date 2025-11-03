@@ -205,7 +205,14 @@ export default class ImageTool implements BlockTool {
    * Renders Block content
    */
   public render(): HTMLDivElement {
-    return this.ui.render(this.data) as HTMLDivElement;
+    const wrapper = this.ui.render(this.data) as HTMLDivElement;
+
+    // Fill image AFTER state is set correctly
+    if (this._data.file !== undefined && this._data.file.url !== '') {
+      this.ui.fillImage(this._data.file.url, this._data.height, this._data.width);
+    }
+
+    return wrapper;
   }
 
   /**
@@ -218,13 +225,31 @@ export default class ImageTool implements BlockTool {
   }
 
   /**
-   * Return Block data
+   * Return Block data with validation
+   *
+   * Validates caption length before saving to prevent backend issues.
+   * Maximum caption length is 500 characters.
    */
   public save(): ImageToolData {
     const caption = this.ui.nodes.caption;
     const image = this.ui.nodes.imageEl;
 
-    this._data.caption = caption.textContent?.trim() ?? '';
+    const captionText = caption.textContent?.trim() ?? '';
+
+    // Validate caption length (max 500 characters)
+    const maxCaptionLength = 500;
+
+    if (captionText.length > maxCaptionLength) {
+      this.api.notifier.show({
+        message: `Caption is too long (max ${maxCaptionLength} characters). It will be truncated.`,
+        style: 'warning',
+        time: 4000,
+      });
+      // Truncate caption to max length
+      this._data.caption = captionText.substring(0, maxCaptionLength);
+    } else {
+      this._data.caption = captionText;
+    }
 
     const currentWidth = image?.clientWidth ?? 0;
     const currentHeight = image?.clientHeight ?? 0;
@@ -304,6 +329,10 @@ export default class ImageTool implements BlockTool {
             .then(response => response.blob())
             .then((file) => {
               this.uploadFile(file);
+            })
+            .catch((error) => {
+              console.error('Failed to fetch blob image:', error);
+              this.uploadingFailed('Failed to load image from clipboard');
             });
           break;
         }
@@ -336,11 +365,12 @@ export default class ImageTool implements BlockTool {
    * @param data - data in Image Tool format
    */
   private set data(data: ImageToolData) {
-    this._data.caption = data.caption || '';
+    this._data.caption = data.caption !== '' ? data.caption : '';
     this._data.height = data.height;
     this._data.width = data.width;
 
-    this.image = data.file;
+    // Store file data but don't call fillImage yet
+    this._data.file = data.file !== undefined ? data.file : { url: '' };
 
     this.ui.fillCaption(this._data.caption);
   }
@@ -353,12 +383,15 @@ export default class ImageTool implements BlockTool {
   }
 
   /**
-   * Set new image file
+   * Set new image file and display it
+   * This is used when uploading new images (not for initial render)
    * @param file - uploaded file data
    */
   private set image(file: ImageSetterParam | undefined) {
     this._data.file = file || { url: '' };
 
+    // Only call fillImage for new uploads (not during initialization)
+    // Initial render calls fillImage directly in render() method
     if (file && file.url) {
       this.ui.fillImage(file.url, this.data.height, this.data.width);
     }
@@ -413,7 +446,7 @@ export default class ImageTool implements BlockTool {
   }
 
   /**
-   * Chack if string is empty
+   * Check if string is empty
    * @param str - str string
    */
   private isNotEmpty(str: string): boolean {

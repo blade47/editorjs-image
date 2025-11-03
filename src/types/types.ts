@@ -81,14 +81,14 @@ export type ImageToolData<Actions = {}, AdditionalFileData = Record<string, unkn
   caption: string;
 
   /**
-   * Height of the image.
+   * Height of the image (optional, undefined for new images).
    */
-  height: string;
+  height?: string;
 
   /**
-   * Width of the image.
+   * Width of the image (optional, undefined for new images).
    */
-  width: string;
+  width?: string;
 
   /**
    * Object containing the URL of the image file.

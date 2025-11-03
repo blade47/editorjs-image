@@ -92,6 +92,11 @@ export default class Ui {
   public nodes: Nodes;
 
   /**
+   * Duration of the fade-in animation in milliseconds (matches CSS transition)
+   */
+  private static readonly FADE_IN_DURATION = 400;
+
+  /**
    * API instance for Editor.js.
    */
   private api: API;
@@ -113,6 +118,9 @@ export default class Ui {
    */
   private readOnly: boolean;
 
+  /**
+   * Flag indicating the content ration of images.
+   */
   private contentRatio: number = 1;
 
   /**
@@ -122,6 +130,12 @@ export default class Ui {
   private imageErrorHandler: ((e: Event) => void) | null = null;
   private fileButtonHandler: (() => void) | null = null;
   private resizeHandlers: Map<HTMLElement, (e: MouseEvent) => void> = new Map();
+
+  /**
+   * Store document-level resize handlers for proper cleanup
+   */
+  private activeMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private activeMouseUpHandler: (() => void) | null = null;
 
   /**
    * @param ui - image tool Ui module
@@ -214,6 +228,10 @@ export default class Ui {
    * @param width - saved width value
    */
   public fillImage(url: string, height?: string, width?: string): void {
+    // Clean up any existing image and handlers before creating new ones
+    // This prevents memory leaks when fillImage is called multiple times
+    this.cleanupOldImage();
+
     /**
      * Check for a source extension to compose element correctly: video tag for mp4, img — for others
      */
@@ -274,42 +292,52 @@ export default class Ui {
      * @param _e - load event
      */
     this.imageLoadHandler = (_e: Event) => {
-      this.toggleStatus(UiState.Filled);
-
-      // Add loaded class for fade-in animation
-      this.nodes.imageEl?.classList.add('loaded');
-
       // Calculate aspect ratio from natural dimensions
+      let videoWidth = 0;
+      let videoHeight = 0;
+
       if (tag === 'VIDEO') {
         const video = this.nodes.imageEl as HTMLVideoElement;
 
-        this.contentRatio = video.videoHeight / video.videoWidth;
+        videoWidth = video.videoWidth;
+        videoHeight = video.videoHeight;
       } else {
         const img = this.nodes.imageEl as HTMLImageElement;
 
-        this.contentRatio = img.naturalHeight / img.naturalWidth;
+        videoWidth = img.naturalWidth;
+        videoHeight = img.naturalHeight;
       }
 
-      // Apply saved dimensions if they exist and are valid
+      // Validate dimensions to prevent division by zero or invalid ratios
+      if (videoWidth > 0 && videoHeight > 0) {
+        this.contentRatio = videoHeight / videoWidth;
+      } else {
+        // Fallback to default aspect ratio if dimensions are invalid
+        this.contentRatio = 1;
+        console.warn('Image dimensions are invalid, using default aspect ratio');
+      }
+
+      // Apply saved dimensions NOW that image is fully loaded
       if (width !== undefined) {
         const widthNum = parseInt(width, 10);
 
-        // Only apply if valid (> 0) - prevents rendering corrupted data as invisible images
-        if (widthNum > 0) {
-          // Set width directly, not maxWidth, so it can be resized larger
+        // Validate width is a positive number
+        if (!isNaN(widthNum) && widthNum > 0) {
           this.nodes.imageEl!.style.width = `${widthNum}px`;
-          // Keep height auto to maintain aspect ratio
           this.nodes.imageEl!.style.height = 'auto';
         }
-        // else: let image use its natural size
       }
 
-      /**
-       * Hide preloader after image loads
-       */
-      if (this.nodes.imagePreloader !== undefined) {
-        this.nodes.imagePreloader.style.display = 'none';
-      }
+      // Image is fully loaded and sized - NOW start the transition
+      // Use requestAnimationFrame to ensure styles are applied before transition starts
+      requestAnimationFrame(() => {
+        this.nodes.imageEl?.classList.add('loaded');
+
+        // Wait for fade-in transition to complete, then hide preloader
+        setTimeout(() => {
+          this.toggleStatus(UiState.Filled);
+        }, Ui.FADE_IN_DURATION);
+      });
     };
 
     /**
@@ -410,8 +438,41 @@ export default class Ui {
    * Clean up resources when destroying the block
    */
   public destroy(): void {
-    // Remove event listeners
+    // Clean up image and its handlers
+    this.cleanupOldImage();
+
+    // Clean up document-level resize handlers
+    this.cleanupDocumentResizeHandlers();
+
+    // Clean up file button handler
+    if (this.fileButtonHandler !== null && this.nodes.fileButton !== undefined) {
+      this.nodes.fileButton.removeEventListener('click', this.fileButtonHandler);
+    }
+
+    // Clear file button handler reference
+    this.fileButtonHandler = null;
+  }
+
+  /**
+   * Clean up document-level resize handlers
+   */
+  private cleanupDocumentResizeHandlers(): void {
+    if (this.activeMouseMoveHandler !== null) {
+      document.removeEventListener('mousemove', this.activeMouseMoveHandler);
+      this.activeMouseMoveHandler = null;
+    }
+    if (this.activeMouseUpHandler !== null) {
+      document.removeEventListener('mouseup', this.activeMouseUpHandler);
+      this.activeMouseUpHandler = null;
+    }
+  }
+
+  /**
+   * Clean up old image element and its handlers
+   */
+  private cleanupOldImage(): void {
     if (this.nodes.imageEl !== undefined) {
+      // Remove event listeners
       if (this.imageLoadHandler !== null) {
         this.nodes.imageEl.removeEventListener('load', this.imageLoadHandler);
         this.nodes.imageEl.removeEventListener('loadeddata', this.imageLoadHandler);
@@ -419,23 +480,27 @@ export default class Ui {
       if (this.imageErrorHandler !== null) {
         this.nodes.imageEl.removeEventListener('error', this.imageErrorHandler);
       }
+
+      // Remove from DOM
+      if (this.nodes.imageEl.parentNode !== null) {
+        this.nodes.imageEl.parentNode.removeChild(this.nodes.imageEl);
+      }
+
+      this.nodes.imageEl = undefined;
     }
 
-    // Clean up file button handler
-    if (this.fileButtonHandler !== null && this.nodes.fileButton !== undefined) {
-      this.nodes.fileButton.removeEventListener('click', this.fileButtonHandler);
-    }
-
-    // Clean up resize handlers
+    // Clean up resize handles
     this.resizeHandlers.forEach((handler, element) => {
       element.removeEventListener('mousedown', handler);
+      if (element.parentNode !== null) {
+        element.parentNode.removeChild(element);
+      }
     });
     this.resizeHandlers.clear();
 
-    // Clear references
+    // Clear handler references
     this.imageLoadHandler = null;
     this.imageErrorHandler = null;
-    this.fileButtonHandler = null;
   }
 
   /**
@@ -507,23 +572,23 @@ export default class Ui {
 
     const mouseDownHandler = (e: MouseEvent): void => {
       e.preventDefault();
+
+      // Clean up any existing document handlers before creating new ones
+      this.cleanupDocumentResizeHandlers();
+
       this.isResizing = true;
 
-      const onMouseMove = (evt: MouseEvent): void => {
+      this.activeMouseMoveHandler = (evt: MouseEvent): void => {
         this.resizeImage(evt, align);
       };
 
-      document.addEventListener('mousemove', onMouseMove);
-
-      const onMouseUp = (): void => {
+      this.activeMouseUpHandler = (): void => {
         this.isResizing = false;
-
-        document.removeEventListener('mousemove', onMouseMove);
-
-        document.removeEventListener('mouseup', onMouseUp);
+        this.cleanupDocumentResizeHandlers();
       };
 
-      document.addEventListener('mouseup', onMouseUp);
+      document.addEventListener('mousemove', this.activeMouseMoveHandler);
+      document.addEventListener('mouseup', this.activeMouseUpHandler);
     };
 
     container.addEventListener('mousedown', mouseDownHandler);

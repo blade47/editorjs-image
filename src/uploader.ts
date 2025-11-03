@@ -56,13 +56,20 @@ export default class Uploader {
    * @param onPreview - callback fired when preview is ready
    */
   public uploadSelectedFile({ onPreview, onPreUpload }: UploadOptions): void {
-    const preparePreview = function (file: File): void {
+    const preparePreview = (file: File): void => {
       const reader = new FileReader();
 
-      reader.readAsDataURL(file);
       reader.onload = (e) => {
         onPreview((e.target as FileReader).result as string);
       };
+
+      reader.onerror = () => {
+        console.error('FileReader error while preparing preview');
+        // Show empty preview on error - upload will still continue
+        onPreview('');
+      };
+
+      reader.readAsDataURL(file);
     };
 
     /**
@@ -161,7 +168,7 @@ export default class Uploader {
           url: this.config.endpoints.byUrl,
           data: Object.assign(
             {
-              url: url,
+              url,
             },
             this.config.additionalRequestData
           ),
@@ -200,10 +207,16 @@ export default class Uploader {
      */
     const reader = new FileReader();
 
-    reader.readAsDataURL(file);
     reader.onload = (e) => {
       onPreview((e.target as FileReader).result as string);
     };
+
+    reader.onerror = () => {
+      console.error('FileReader error while loading file preview');
+      // Keep empty preview on error - upload will still continue
+    };
+
+    reader.readAsDataURL(file);
 
     let upload: Promise<UploadResponseFormat>;
 
